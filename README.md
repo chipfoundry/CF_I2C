@@ -1,34 +1,54 @@
-# EF_I2C
+# CF_I2C
 
-I2C master controller with an APB interface
-## The wrapped IP
+APB and wishbone wrappers for the I2C master controller which is implemented in Verilog in the [alexforencich/verilog-i2c](https://github.com/efabless/I2C) repository.
 
 
- The IP comes with an APB Wrapper.
-
-### Wrapped IP System Integration
+#### Wrapped IP System Integration
 
 ```verilog
-EF_I2C_APB INST (
-        `TB_APB_SLAVE_CONN,
-        .scl_i(scl_i),
-        .scl_o(scl_o),
-        .scl_oen_o(scl_oen_o),
-        .sda_i(sda_i),
-        .sda_o(sda_o),
-        .sda_oen_o(sda_oen_o),
-        .i2c_irq(i2c_irq)
+CF_I2C_WB INST (
+	.clk_i(clk_i),
+	.rst_i(rst_i),
+	.adr_i(adr_i),
+	.dat_i(dat_i),
+	.dat_o(dat_o),
+	.sel_i(sel_i),
+	.cyc_i(cyc_i),
+	.stb_i(stb_i),
+	.ack_o(ack_o),
+	.we_i(we_i), 
+	.IRQ(irq),
+	.scl_i(scl_i),
+	.scl_o(scl_o),
+	.scl_oen_o(scl_oen_o),
+	.sda_i(sda_i),
+	.sda_o(sda_o),
+	.sda_oen_o(sda_oen_o)
 );
 ```
-> **_NOTE:_** `TB_APB_SLAVE_CONN is a convenient macro provided by [BusWrap](https://github.com/efabless/BusWrap/tree/main).
+
+#### Wrappers with DFT support
+Wrappers in the directory ``/hdl/rtl/bus_wrappers/DFT`` have an extra input port ``sc_testmode`` to disable the clock gate whenever the scan chain testmode is enabled.
+### External IO interfaces
+|IO name|Direction|Width|Description|
+|---|---|---|---|
+|scl_i|input|1|i2c scl (Serial Clock) input|
+|scl_o|output|1|i2c scl (Serial Clock) output|
+|scl_oen_o|output|1|i2c scl (Serial Clock) output enable|
+|sda_i|input|1|i2c scl (Serial Data) input|
+|sda_o|output|1|i2c scl (Serial Data) output|
+|sda_oen_o|output|1|i2c scl (Serial Data) output enable|
+|i2c_irq|output|1|i2c interrupt|
+### Interrupt Request Line (irq)
+This IP generates interrupts on specific events, which are described in the [Interrupt Flags](#interrupt-flags) section bellow. The IRQ port should be connected to the system interrupt controller.
 
 ## Implementation example  
 
-The following table is the result for implementing the EF_I2C IP with different wrappers using Sky130 PDK and [OpenLane2](https://github.com/efabless/openlane2) flow.
+The following table is the result for implementing the CF_I2C IP with different wrappers using Sky130 HD library and [OpenLane2](https://github.com/efabless/openlane2) flow.
 |Module | Number of cells | Max. freq |
 |---|---|---|
-|EF_I2C|TBD| TBD |
-|EF_I2C_APB|TBD|TBD|
+|CF_I2C|TBD| TBD |
+|CF_I2C_APB|TBD|TBD|
 ## The Programmer's Interface
 
 
@@ -36,6 +56,7 @@ The following table is the result for implementing the EF_I2C IP with different 
 
 |Name|Offset|Reset Value|Access Mode|Description|
 |---|---|---|---|---|
+|Status|0000|0x00000000|w|status register|
 |Command|0004|0x00000000|w|bit 0-6: cmd_address, bit 8: cmd_start, bit 9: cmd_read, bit 10: cmd_write, bit 11: cmd_wr_m, bit 12: cmd_stop. Setting more than one command bit is allowed.  Start or repeated start will be issued first, followed by read or write, followed by stop.  Note that setting read and write at the same time is not allowed, this will result in the command being ignored.|
 |Data|0008|0x00000000|w/r|bit 0-7: data, bit 8: data_valid, bit 9: data_last|
 |PR|000c|0x00000000|w|prescale = Fclk / (FI2Cclk * 4)|
@@ -43,6 +64,27 @@ The following table is the result for implementing the EF_I2C IP with different 
 |RIS|ff08|0x00000000|w|Raw Interrupt Status; reflects the current interrupts status;check the interrupt flags table for more details|
 |MIS|ff04|0x00000000|w|Masked Interrupt Status; On a read, this register gives the current masked status value of the corresponding interrupt. A write has no effect; check the interrupt flags table for more details|
 |IC|ff0c|0x00000000|w|Interrupt Clear Register; On a write of 1, the corresponding interrupt (both raw interrupt and masked interrupt, if enabled) is cleared; check the interrupt flags table for more details|
+|GCLK|ff10|0x00000000|w|Gated clock enable; 1: enable clock, 0: disable clock|
+
+### Status Register [Offset: 0x0, mode: w]
+
+status register
+<img src="https://svg.wavedrom.com/{reg:[{name:'busy', bits:1},{name:'bus_cont', bits:1},{name:'bus_act', bits:1},{name:'miss_ack', bits:1},{bits: 4},{name:'cmd_empty', bits:1},{name:'cmd_full', bits:1},{name:'cmd_ovf', bits:1},{name:'wr_empty', bits:1},{name:'wr_full', bits:1},{name:'wr_ovf', bits:1},{name:'rd_empty', bits:1},{name:'rd_full', bits:1},{bits: 16}], config: {lanes: 2, hflip: true}} "/>
+
+|bit|field name|width|description|
+|---|---|---|---|
+|0|busy|1|high when module is performing an I2C operation|
+|1|bus_cont|1|high when module has control of active bus|
+|2|bus_act|1|high when bus is active|
+|3|miss_ack|1|set high when an ACK pulse from a slave device is not seen; write 1 to clear|
+|8|cmd_empty|1|command FIFO empty|
+|9|cmd_full|1|command FIFO full|
+|10|cmd_ovf|1|command FIFO overflow; write 1 to clear|
+|11|wr_empty|1|write data FIFO empty|
+|12|wr_full|1|write data FIFO full|
+|13|wr_ovf|1|write data FIFO overflow; write 1 to clear|
+|14|rd_empty|1|read data FIFO is empty|
+|15|rd_full|1|read data FIFO is full|
 
 ### Command Register [Offset: 0x4, mode: w]
 
@@ -58,7 +100,6 @@ bit 0-6: cmd_address, bit 8: cmd_start, bit 9: cmd_read, bit 10: cmd_write, bit 
 |11|cmd_write_multiple|1|set high to start block write, write to push on command FIFO|
 |12|cmd_stop|1|set high to issue I2C stop, write to push on command FIFO|
 
-
 ### Data Register [Offset: 0x8, mode: w/r]
 
 bit 0-7: data, bit 8: data_valid, bit 9: data_last
@@ -70,25 +111,33 @@ bit 0-7: data, bit 8: data_valid, bit 9: data_last
 |8|data_valid|1|indicates valid read data, must be accessed with atomic 16 bit reads and writes|
 |9|data_last|1|indicate last byte of block write (write_multiple), must be accessed with atomic 16 bit reads and writes|
 
-
 ### PR Register [Offset: 0xc, mode: w]
 
 prescale = Fclk / (FI2Cclk * 4)
 <img src="https://svg.wavedrom.com/{reg:[{name:'PR', bits:16},{bits: 16}], config: {lanes: 2, hflip: true}} "/>
 
+### GCLK Register [Offset: 0xff10, mode: w]
+
+ Gated clock enable register
+<img src="https://svg.wavedrom.com/{reg:[{name:'gclk_enable', bits:1},{bits: 31}], config: {lanes: 2, hflip: true}} "/>
+
+|bit|field name|width|description|
+|---|---|---|---|
+|0|gclk_enable|1|Gated clock enable; 1: enable clock, 0: disable clock|
+
 
 ### Interrupt Flags
 
-The wrapped IP provides four registers to deal with interrupts: IM, RIS, MIS and IC. These registers exist for all wrapper types generated by the [BusWrap](https://github.com/efabless/BusWrap/tree/main) `bus_wrap.py` utility. 
+The wrapped IP provides four registers to deal with interrupts: IM, RIS, MIS and IC. These registers exist for all wrapper types.
 
 Each register has a group of bits for the interrupt sources/flags.
-- `IM`: is used to enable/disable interrupt sources.
+- `IM` [offset: ``0xff00``]: is used to enable/disable interrupt sources.
 
-- `RIS`: has the current interrupt status (interrupt flags) whether they are enabled or disabled.
+- `RIS` [offset: ``0xff08``]: has the current interrupt status (interrupt flags) whether they are enabled or disabled.
 
-- `MIS`: is the result of masking (ANDing) RIS by IM.
+- `MIS` [offset: ``0xff04``]: is the result of masking (ANDing) RIS by IM.
 
-- `IC`: is used to clear an interrupt flag.
+- `IC` [offset: ``0xff0c``]: is used to clear an interrupt flag.
 
 
 The following are the bit definitions for the interrupt registers:
@@ -104,9 +153,34 @@ The following are the bit definitions for the interrupt registers:
 |6|WROVF|1|Write FIFO overflow; write 1 to clear|
 |7|RDE|1|Read FIFO is Empty|
 |8|RDF|1|Read FIFO is Full|
+### Clock Gating
+The IP includes a clock gating feature that allows selective activation and deactivation of the clock using the ``GCLK`` register. This capability is implemented through the ``cf_util_gating_cell`` module, which is part of the common modules library, [cf_util_lib.v](https://github.com/efabless/CF_IP_UTIL/blob/main/hdl/cf_util_lib.v). By default, the clock gating is disabled. To enable behavioral implmentation clock gating, only for simulation purposes, you should define the ``CLKG_GENERIC`` macro. Alternatively, define the ``CLKG_SKY130_HD`` macro if you wish to use the SKY130 HD library clock gating cell, ``sky130_fd_sc_hd__dlclkp_4``.
 
-### The Interface 
-<img src="docs/i2c_master_wbs_16.svg" width="600"/>
+**Note:** If you choose the [OpenLane2](https://github.com/efabless/openlane2) flow for implementation and would like to enable the clock gating feature, you need to add ``CLKG_SKY130_HD`` macro to the ``VERILOG_DEFINES`` configuration variable. Update OpenLane2 YAML configuration file as follows: 
+```
+VERILOG_DEFINES:
+- CLKG_SKY130_HD
+```
+## Firmware Drivers:
+Firmware drivers for CF_I2C can be found in the [Drivers](https://github.com/efabless/EFIS/tree/main/Drivers) directory in the [EFIS](https://github.com/efabless/EFIS) (Efabless Firmware Interface Standard) repo. CF_I2C driver documentation  is available [here](https://github.com/efabless/EFIS/blob/main/Drivers/docs/CF_Driver_I2C/README.md).
+You can also find an example C application using the CF_I2C drivers [here](https://github.com/efabless/EFIS/tree/main/Drivers/docs/CF_Driver_I2C/example).
+## Installation:
+You can install the IP either by cloning this repository or by using [IPM](https://github.com/efabless/IPM).
+### 1. Using [IPM](https://github.com/efabless/IPM):
+- [Optional] If you do not have IPM installed, follow the installation guide [here](https://github.com/efabless/IPM/blob/main/README.md)
+- After installing IPM, execute the following command ```ipm install CF_I2C```.
+> **Note:** This method is recommended as it automatically installs [CF_IP_UTIL](https://github.com/efabless/CF_IP_UTIL.git) as a dependency.
+### 2. Cloning this repo: 
+- Clone [CF_IP_UTIL](https://github.com/efabless/CF_IP_UTIL.git) repository, which includes the required modules from the common modules library, [cf_util_lib.v](https://github.com/efabless/CF_IP_UTIL/blob/main/hdl/cf_util_lib.v).
+```git clone https://github.com/efabless/CF_IP_UTIL.git```
+- Clone the IP repository
+```git clone https://github.com/efabless/CF_I2C```
+
+### The Wrapped IP Interface 
+
+>**_NOTE:_** This section is intended for advanced users who wish to gain more information about the interface of the wrapped IP, in case they want to create their own wrappers.
+
+<img src="docs/_static/CF_I2C.svg" width="600"/>
 
 #### Module Parameters 
 
@@ -147,31 +221,3 @@ The following are the bit definitions for the interrupt registers:
 |i2c_sda_o|output|1|i2c scl (Serial Data) output|
 |i2c_sda_t|output|1|i2c scl (Serial Data) tristate|
 |flags|output|16|i2c flags|
-## F/W Usage Guidelines:
-1. Set the prescaler by writing to ``PR`` register where prescaler = clk_frq / (I2C_clk * 4)
-2. Write a command in the ``command`` register according to whether you want to read or write as well as the slave address. 
-3. Write the data in the ``data`` register if you are writing to slave or read the same register if you are reading from the slave. 
-## Installation:
-You can either clone repo or use [IPM](https://github.com/efabless/IPM) which is an open-source IPs Package Manager
-* To clone repo:
-```git clone https://https://github.com/efabless/EF_I2C```
-* To download via IPM , follow installation guides [here](https://github.com/efabless/IPM/blob/main/README.md) then run 
-```ipm install EF_I2C```
-### Run cocotb UVM Testbench:
-In IP directory run:
- ```shell
- cd verify/uvm-python/
- ```
- ##### To run testbench for design with APB 
- To run all tests:
- ```shell
- make run_all_tests BUS_TYPE=APB
- ```
- To run a certain test:
- ```shell
- make run_<test_name> BUS_TYPE=APB
- ```
- To run all tests with a tag: 
- ```shell
- make run_all_tests TAG=<new_tag> BUS_TYPE=APB
- ```

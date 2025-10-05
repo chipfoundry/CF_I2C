@@ -1,19 +1,21 @@
 /*
-    Copyright (c) 2023 Mohamed Shalan (mshalan@aucegypt.edu)
+	Copyright 2024-2025 ChipFoundry, a DBA of Umbralogic Technologies LLC.
 
-    APB Interface with Interrupt management for the 
-    i2c Master Controller by Alex Forencich
+	Original Copyright 2024 Efabless Corp.
+	Author: Efabless Corp. (ip_admin@efabless.com)
 
-	Licensed under the Apache License, Version 2.0 (the "License"); 
-	you may not use this file except in compliance with the License. 
-	You may obtain a copy of the License at:
-	http://www.apache.org/licenses/LICENSE-2.0
-	
-    Unless required by applicable law or agreed to in writing, software 
-	distributed under the License is distributed on an "AS IS" BASIS, 
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-	See the License for the specific language governing permissions and 
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+	    http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
 	limitations under the License.
+
 */
 
 `timescale			    1ns/1ns
@@ -36,7 +38,7 @@
                                             apb_wr_ack_1 <= 0; \
                                         end
 
-module EF_I2C_APB # (
+module CF_I2C_APB # (
     parameter DEFAULT_PRESCALE = 1,
     parameter FIXED_PRESCALE = 0,
     parameter CMD_FIFO = 1,
@@ -84,7 +86,7 @@ module EF_I2C_APB # (
         wire clk_g;
         wire clk_gated_en = GCLK_REG[0];
 
-    ef_gating_cell clk_gate_cell(
+    cf_util_gating_cell clk_gate_cell(
     `ifdef USE_POWER_PINS 
     .vpwr(VPWR),
     .vgnd(VGND),

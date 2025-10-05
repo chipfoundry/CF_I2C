@@ -1,12 +1,12 @@
 ---
 info:
-  name: EF_I2C
+  name: CF_I2C
   description: APB and wishbone wrappers for the I2C master controller which is implemented in Verilog in the [alexforencich/verilog-i2c](https://github.com/efabless/I2C) repository.
-  repo: https://github.com/efabless/EF_I2C
-  owner: Efabless Corp.
+  repo: https://github.com/chipfoundry/CF_I2C
+  owner: ChipFoundry, a DBA of Umbralogic Technologies LLC
   license: APACHE 2.0
-  author: Efabless Corp.
-  email: ip_admin@efabless.com
+  author: ChipFoundry, a DBA of Umbralogic Technologies LLC
+  email: info@chipfoundry.com
   version: v1.1.0
   date: 2025-01-23
   category: digital

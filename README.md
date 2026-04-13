@@ -1,5 +1,11 @@
 # CF_I2C
 
+[![Verification](https://github.com/chipfoundry/CF_I2C/actions/workflows/verify.yaml/badge.svg)](https://github.com/chipfoundry/CF_I2C/actions/workflows/verify.yaml)
+![Tests](https://img.shields.io/endpoint?url=https://chipfoundry.github.io/CF_I2C/badges/verification.json)
+![Functional Coverage](https://img.shields.io/endpoint?url=https://chipfoundry.github.io/CF_I2C/badges/func-coverage.json)
+![Line Coverage](https://img.shields.io/endpoint?url=https://chipfoundry.github.io/CF_I2C/badges/line-coverage.json)
+![Branch Coverage](https://img.shields.io/endpoint?url=https://chipfoundry.github.io/CF_I2C/badges/branch-coverage.json)
+
 APB and wishbone wrappers for the I2C master controller which is implemented in Verilog in the [alexforencich/verilog-i2c](https://github.com/efabless/I2C) repository.
 
 

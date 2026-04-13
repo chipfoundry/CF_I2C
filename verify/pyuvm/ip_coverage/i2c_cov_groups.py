@@ -48,10 +48,9 @@ class i2c_cov_groups:
         _s(tr)
 
     def sample_bus(self, tr):
-        if tr.kind == bus_item.READ:
-            rname = self.regs._reg_address_to_name.get(tr.addr)
-            if rname:
-                self.regs._reg_values[rname.lower()] = tr.data
+        rname = self.regs._reg_address_to_name.get(tr.addr)
+        if rname:
+            self.regs._reg_values[rname.lower()] = tr.data
 
         @self._apply_decorators(
             self.auto_points + self.status_cov + self.irq_cov

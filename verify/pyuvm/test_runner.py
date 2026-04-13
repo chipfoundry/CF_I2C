@@ -64,6 +64,7 @@ TESTS = [
     "PrescalerTest",
     "InterruptTest",
     "StatusTest",
+    "CoverageClosureTest",
 ]
 
 

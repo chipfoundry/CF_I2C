@@ -167,3 +167,15 @@ class StatusTest(i2c_base_test):
         )
 
         self.drop_objection()
+
+
+@pyuvm.test()
+class CoverageClosureTest(i2c_base_test):
+    """Coverage closure — systematically exercises all coverage bins."""
+
+    async def run_phase(self):
+        self.raise_objection()
+        from seq_lib.i2c_coverage_closure_seq import i2c_coverage_closure_seq
+        seq = i2c_coverage_closure_seq("cov_closure")
+        await seq.start(self.env.bus_agent.sequencer)
+        self.drop_objection()

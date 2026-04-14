@@ -34,7 +34,7 @@ module top();
             .PREADY(PREADY),
             .scl_i(scl_i), .scl_o(scl_o), .scl_oen_o(scl_oen_o),
             .sda_i(sda_i), .sda_o(sda_o), .sda_oen_o(sda_oen_o),
-            .i2c_irq(irq)
+            .IRQ(irq)
         );
     `endif
 

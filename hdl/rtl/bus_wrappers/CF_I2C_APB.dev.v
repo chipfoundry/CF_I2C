@@ -73,7 +73,7 @@ module CF_I2C_APB # (
     output wire         sda_o,
     output wire         sda_oen_o,
 
-    output wire         i2c_irq
+    output wire         IRQ
 );
 
     localparam[15:0] RIS_REG_ADDR = 16'hFF08;
@@ -179,6 +179,6 @@ module CF_I2C_APB # (
         else
             apb_rd_ack <= 0;
     end
-    assign i2c_irq = |MIS_REG;
+    assign IRQ = |MIS_REG;
 
 endmodule

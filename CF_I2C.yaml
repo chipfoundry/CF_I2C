@@ -150,8 +150,8 @@ external_interface:
   direction: output
   width: 1
   description: i2c scl (Serial Data) output enable 
-- name: i2c_irq
-  port: i2c_irq
+- name: IRQ
+  port: IRQ
   direction: output
   width: 1
   description: i2c interrupt 

@@ -44,7 +44,7 @@ Wrappers in the directory ``/hdl/rtl/bus_wrappers/DFT`` have an extra input port
 |sda_i|input|1|i2c scl (Serial Data) input|
 |sda_o|output|1|i2c scl (Serial Data) output|
 |sda_oen_o|output|1|i2c scl (Serial Data) output enable|
-|i2c_irq|output|1|i2c interrupt|
+|IRQ|output|1|i2c interrupt|
 ### Interrupt Request Line (irq)
 This IP generates interrupts on specific events, which are described in the [Interrupt Flags](#interrupt-flags) section bellow. The IRQ port should be connected to the system interrupt controller.
 
@@ -211,7 +211,7 @@ You can install the IP either by cloning this repository or by using [IPM](https
 |sda_i|input|1|i2c scl (Serial Data) input|
 |sda_o|output|1|i2c scl (Serial Data) output|
 |sda_oen_o|output|1|i2c scl (Serial Data) output enable|
-|i2c_irq|output|1|i2c interrupt|
+|IRQ|output|1|i2c interrupt|
 |wbs_adr_i|input|3|wishbone input address|
 |wbs_dat_i|input|16|wishbone input data|
 |wbs_dat_o|output|16|wishbone data out|

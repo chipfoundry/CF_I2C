@@ -1,3 +1,4 @@
+# Standalone IP repo: .github at repository root. Monorepo: /.github/workflows/verify-all.yaml.
 name: CF_I2C Verification
 
 on:

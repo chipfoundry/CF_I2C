@@ -5,7 +5,7 @@ import random
 from cocotb.triggers import ClockCycles, Timer
 from pyuvm import uvm_sequence, ConfigDB, uvm_root
 
-from cf_verify.bus_env.bus_seq_lib import write_reg_seq, read_reg_seq
+from cf_verify.bus_env.bus_seq_lib import write_reg_seq, read_reg_seq, reset_seq
 from seq_lib.i2c_config_seq import i2c_config_seq
 
 
@@ -18,6 +18,7 @@ class i2c_write_read_seq(uvm_sequence):
         self.prescaler = prescaler
 
     async def body(self):
+        await reset_seq("rst").start(self.sequencer)
         regs = ConfigDB().get(None, "", "bus_regs")
         addr = regs.reg_name_to_address
         dut = ConfigDB().get(None, "", "DUT")
@@ -58,9 +59,12 @@ class i2c_write_read_seq(uvm_sequence):
 
         await self._wait_idle(dut, regs, addr)
 
-        # Read command
-        cmd_rd = (SLAVE_ADDR & 0x7F) | (1 << 8) | (1 << 9) | (1 << 12)
-        await write_reg_seq("rd_cmd", addr["Command"], cmd_rd).start(self.sequencer)
+        # Read commands: one per byte, start on first, stop on last
+        for i in range(len(write_data)):
+            start = (1 << 8) if i == 0 else 0
+            stop = (1 << 12) if i == len(write_data) - 1 else 0
+            cmd_rd = (SLAVE_ADDR & 0x7F) | start | (1 << 9) | stop
+            await write_reg_seq("rd_cmd", addr["Command"], cmd_rd).start(self.sequencer)
 
         await self._wait_idle(dut, regs, addr)
 
@@ -72,17 +76,11 @@ class i2c_write_read_seq(uvm_sequence):
             if val & (1 << 8):
                 read_data.append(val & 0xFF)
 
-        if read_data == write_data:
-            uvm_root().logger.info(
-                f"I2C write/read verify PASSED: addr=0x{mem_addr:04x} "
-                f"data={[hex(d) for d in write_data]}"
-            )
-        else:
-            uvm_root().logger.error(
-                f"I2C write/read MISMATCH: addr=0x{mem_addr:04x} "
-                f"wrote={[hex(d) for d in write_data]} "
-                f"read={[hex(d) for d in read_data]}"
-            )
+        assert read_data == write_data, (
+            f"I2C write/read MISMATCH: addr=0x{mem_addr:04x} "
+            f"wrote={[hex(d) for d in write_data]} "
+            f"read={[hex(d) for d in read_data]}"
+        )
 
     async def _wait_idle(self, dut, regs, addr):
         for _ in range(5000):

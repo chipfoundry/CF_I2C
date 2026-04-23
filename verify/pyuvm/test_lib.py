@@ -5,7 +5,7 @@ from pathlib import Path
 
 import cocotb
 import pyuvm
-from pyuvm import uvm_root, ConfigDB
+from pyuvm import ConfigDB, uvm_root
 
 from cocotb.triggers import ClockCycles
 from cocotb_coverage.coverage import coverage_db
@@ -13,7 +13,12 @@ from cocotb_coverage.coverage import coverage_db
 from cf_verify.base.base_test import base_test
 from cf_verify.base.top_env import top_env
 from cf_verify.bus_env.bus_regs import BusRegs
-from cf_verify.bus_env.bus_seq_lib import write_read_regs_seq, reset_seq
+from cf_verify.bus_env.bus_seq_lib import (
+    write_read_regs_seq,
+    reset_seq,
+    write_reg_seq,
+    read_reg_seq,
+)
 from cf_verify.ip_env.ip_agent import ip_agent
 from cf_verify.ip_env.ip_driver import ip_driver
 from cf_verify.ip_env.ip_monitor import ip_monitor
@@ -87,6 +92,29 @@ class WriteReadRegsTest(i2c_base_test):
         self.raise_objection()
         seq = write_read_regs_seq("write_read_regs")
         await seq.start(self.env.bus_agent.sequencer)
+
+        regs = ConfigDB().get(None, "", "bus_regs")
+        addr = regs.reg_name_to_address
+        for reg in regs.get_writable_regs():
+            if reg.name in ("IC", "GCLK", "IM") or reg.name.endswith("_FLUSH"):
+                continue
+            if reg.mode == "w":
+                continue
+            wr_val = (
+                0xA5 if reg.size <= 8
+                else 0xA5A5 if reg.size <= 16
+                else 0xDEAD_BEEF
+            ) & ((1 << reg.size) - 1)
+            await write_reg_seq("wr_chk", addr[reg.name], wr_val).start(
+                self.env.bus_agent.sequencer
+            )
+            rd = read_reg_seq("rd_chk", addr[reg.name])
+            await rd.start(self.env.bus_agent.sequencer)
+            rd_val = rd.result & ((1 << reg.size) - 1)
+            assert rd_val == wr_val, (
+                f"WriteReadRegsTest mismatch on {reg.name}: "
+                f"wrote 0x{wr_val:x}, read 0x{rd_val:x}"
+            )
         self.drop_objection()
 
 

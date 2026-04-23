@@ -11,3 +11,8 @@ class i2c_scoreboard(scoreboard):
             dut_tr = await self.ip_dut_fifo.get()
             ref_tr = await self.ip_ref_fifo.get()
             self._check("IP", dut_tr, ref_tr)
+
+    def check_phase(self):
+        assert self.failed == 0, (
+            f"I2C scoreboard mismatches: failed={self.failed}, passed={self.passed}"
+        )

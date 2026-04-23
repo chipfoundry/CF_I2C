@@ -34,6 +34,7 @@ class i2c_item(uvm_sequence_item):
             self.address == rhs.address
             and self.data == rhs.data
             and self.direction == rhs.direction
+            and self.ack == rhs.ack
         )
 
     def do_copy(self, rhs):

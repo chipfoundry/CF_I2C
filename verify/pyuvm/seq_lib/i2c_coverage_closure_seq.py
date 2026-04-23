@@ -3,7 +3,7 @@
 from pyuvm import uvm_sequence, ConfigDB
 from cocotb.triggers import ClockCycles
 
-from cf_verify.bus_env.bus_seq_lib import write_reg_seq, read_reg_seq
+from cf_verify.bus_env.bus_seq_lib import write_reg_seq, read_reg_seq, reset_seq
 from seq_lib.i2c_config_seq import i2c_config_seq
 
 
@@ -12,6 +12,7 @@ SLAVE_ADDR = 0x50
 
 class i2c_coverage_closure_seq(uvm_sequence):
     async def body(self):
+        await reset_seq("rst").start(self.sequencer)
         regs = ConfigDB().get(None, "", "bus_regs")
         self.addr = regs.reg_name_to_address
         self.dut = ConfigDB().get(None, "", "DUT")

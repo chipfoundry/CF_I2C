@@ -68,11 +68,22 @@ class i2c_write_read_seq(uvm_sequence):
 
         await self._wait_idle(dut, regs, addr)
 
+        async def _wait_read_fifo():
+            # Status.rd_empty (bit 14): 1 = read FIFO empty — do not read Data until 0
+            for _ in range(200_000):
+                await read_reg_seq("rd_st_rx", addr["Status"]).start(self.sequencer)
+                st = int(regs.read_reg_value("Status"))
+                if not (st & (1 << 14)):
+                    return
+                await ClockCycles(dut.CLK, 3)
+            assert False, "timeout waiting for I2C read data (rd_empty)"
+
         # Per-transfer read value: Verilator often has the correct data in
         # read_reg_seq.result; Icarus can leave .result deasserted while the
         # regfile mirror (read_reg_value) has data_valid+byte.
         read_data = []
         for i in range(len(write_data)):
+            await _wait_read_fifo()
             rd = read_reg_seq(f"rd_data_{i}", addr["Data"])
             await rd.start(self.sequencer)
             v_bus = int(rd.result) if rd.result is not None else 0

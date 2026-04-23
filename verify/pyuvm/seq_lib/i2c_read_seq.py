@@ -51,9 +51,19 @@ class i2c_read_seq(uvm_sequence):
 
         await self._wait_idle(dut, regs, addr)
 
+        async def _wait_read_fifo():
+            for _ in range(200_000):
+                await read_reg_seq("rd_st_rx", addr["Status"]).start(self.sequencer)
+                st = int(regs.read_reg_value("Status"))
+                if not (st & (1 << 14)):
+                    return
+                await ClockCycles(dut.CLK, 3)
+            assert False, "timeout waiting for I2C read data (rd_empty)"
+
         # Read data from FIFO (see i2c_write_read_seq for bus vs reg mirror)
         self.read_data = []
         for i in range(self.num_bytes):
+            await _wait_read_fifo()
             rd = read_reg_seq(f"rd_data_{i}", addr["Data"])
             await rd.start(self.sequencer)
             v_bus = int(rd.result) if rd.result is not None else 0

@@ -51,12 +51,13 @@ class i2c_read_seq(uvm_sequence):
 
         await self._wait_idle(dut, regs, addr)
 
-        # Read data from FIFO
+        # Read data from FIFO (use sequence result; see i2c_write_read_seq)
         self.read_data = []
-        for _ in range(self.num_bytes):
-            await read_reg_seq("rd_data", addr["Data"]).start(self.sequencer)
-            val = regs.read_reg_value("Data")
-            if val & (1 << 8):  # data_valid
+        for i in range(self.num_bytes):
+            rd = read_reg_seq(f"rd_data_{i}", addr["Data"])
+            await rd.start(self.sequencer)
+            val = int(rd.result)
+            if val & (1 << 8):
                 self.read_data.append(val & 0xFF)
 
     async def _wait_idle(self, dut, regs, addr):

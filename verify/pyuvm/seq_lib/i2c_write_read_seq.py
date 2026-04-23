@@ -68,13 +68,15 @@ class i2c_write_read_seq(uvm_sequence):
 
         await self._wait_idle(dut, regs, addr)
 
-        # Read data from FIFO and compare
+        # Use read_reg_seq result (per-transfer bus data). Verilator can leave
+        # the register mirror stale across consecutive reads of Data.
         read_data = []
-        for _ in range(len(write_data)):
-            await read_reg_seq("rd_data", addr["Data"]).start(self.sequencer)
-            val = regs.read_reg_value("Data")
-            if val & (1 << 8):
-                read_data.append(val & 0xFF)
+        for i in range(len(write_data)):
+            rd = read_reg_seq(f"rd_data_{i}", addr["Data"])
+            await rd.start(self.sequencer)
+            val = int(rd.result)
+            assert val & (1 << 8), f"read Data not valid: 0x{val:04x}"
+            read_data.append(val & 0xFF)
 
         assert read_data == write_data, (
             f"I2C write/read MISMATCH: addr=0x{mem_addr:04x} "

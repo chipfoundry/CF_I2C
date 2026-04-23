@@ -68,14 +68,21 @@ class i2c_write_read_seq(uvm_sequence):
 
         await self._wait_idle(dut, regs, addr)
 
-        # Use read_reg_seq result (per-transfer bus data). Verilator can leave
-        # the register mirror stale across consecutive reads of Data.
+        # Per-transfer read value: Verilator often has the correct data in
+        # read_reg_seq.result; Icarus can leave .result deasserted while the
+        # regfile mirror (read_reg_value) has data_valid+byte.
         read_data = []
         for i in range(len(write_data)):
             rd = read_reg_seq(f"rd_data_{i}", addr["Data"])
             await rd.start(self.sequencer)
-            val = int(rd.result)
-            assert val & (1 << 8), f"read Data not valid: 0x{val:04x}"
+            v_bus = int(rd.result) if rd.result is not None else 0
+            v_reg = int(regs.read_reg_value("Data"))
+            if v_bus & (1 << 8):
+                val = v_bus
+            elif v_reg & (1 << 8):
+                val = v_reg
+            else:
+                assert False, f"read Data not valid: bus=0x{v_bus:04x} reg=0x{v_reg:04x}"
             read_data.append(val & 0xFF)
 
         assert read_data == write_data, (

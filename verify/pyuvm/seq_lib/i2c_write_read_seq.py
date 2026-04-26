@@ -1,0 +1,111 @@
+"""I2C write-then-read sequence — writes data to EEPROM, reads back, and verifies."""
+
+import random
+
+from cocotb.triggers import ClockCycles, Timer
+from pyuvm import uvm_sequence, ConfigDB, uvm_root
+
+from cf_verify.bus_env.bus_seq_lib import write_reg_seq, read_reg_seq, reset_seq
+from seq_lib.i2c_config_seq import i2c_config_seq
+
+
+SLAVE_ADDR = 0x50
+
+
+class i2c_write_read_seq(uvm_sequence):
+    def __init__(self, name="i2c_write_read_seq", prescaler=None):
+        super().__init__(name)
+        self.prescaler = prescaler
+
+    async def body(self):
+        await reset_seq("rst").start(self.sequencer)
+        regs = ConfigDB().get(None, "", "bus_regs")
+        addr = regs.reg_name_to_address
+        dut = ConfigDB().get(None, "", "DUT")
+
+        config = i2c_config_seq("config", prescaler=self.prescaler)
+        await config.start(self.sequencer)
+
+        mem_addr = random.randint(0, 0x1F00)
+        write_data = [random.randint(0, 0xFF) for _ in range(random.randint(1, 4))]
+
+        # WRITE PHASE: write data to EEPROM
+        # Address bytes
+        await write_reg_seq("wr_data", addr["Data"],
+                            (mem_addr >> 8) & 0xFF).start(self.sequencer)
+        await write_reg_seq("wr_data", addr["Data"],
+                            mem_addr & 0xFF).start(self.sequencer)
+        # Data bytes
+        for i, byte in enumerate(write_data):
+            last = (1 << 9) if i == len(write_data) - 1 else 0
+            await write_reg_seq("wr_data", addr["Data"],
+                                byte | last).start(self.sequencer)
+        # Write command
+        cmd_wr = (SLAVE_ADDR & 0x7F) | (1 << 8) | (1 << 11) | (1 << 12)
+        await write_reg_seq("wr_cmd", addr["Command"], cmd_wr).start(self.sequencer)
+
+        await self._wait_idle(dut, regs, addr)
+
+        # EEPROM write cycle time (~5ms real, but in sim we wait clock cycles)
+        await ClockCycles(dut.CLK, 5000)
+
+        # READ PHASE: set address then read back
+        await write_reg_seq("wr_data", addr["Data"],
+                            (mem_addr >> 8) & 0xFF).start(self.sequencer)
+        await write_reg_seq("wr_data", addr["Data"],
+                            (mem_addr & 0xFF) | (1 << 9)).start(self.sequencer)
+        cmd_addr = (SLAVE_ADDR & 0x7F) | (1 << 8) | (1 << 11)
+        await write_reg_seq("wr_cmd", addr["Command"], cmd_addr).start(self.sequencer)
+
+        await self._wait_idle(dut, regs, addr)
+
+        # Read commands: one per byte, start on first, stop on last
+        for i in range(len(write_data)):
+            start = (1 << 8) if i == 0 else 0
+            stop = (1 << 12) if i == len(write_data) - 1 else 0
+            cmd_rd = (SLAVE_ADDR & 0x7F) | start | (1 << 9) | stop
+            await write_reg_seq("rd_cmd", addr["Command"], cmd_rd).start(self.sequencer)
+
+        await self._wait_idle(dut, regs, addr)
+
+        async def _wait_read_fifo():
+            # Status.rd_empty (bit 14): 1 = read FIFO empty — do not read Data until 0
+            for _ in range(200_000):
+                await read_reg_seq("rd_st_rx", addr["Status"]).start(self.sequencer)
+                st = int(regs.read_reg_value("Status"))
+                if not (st & (1 << 14)):
+                    return
+                await ClockCycles(dut.CLK, 3)
+            assert False, "timeout waiting for I2C read data (rd_empty)"
+
+        # Per-transfer read value: Verilator often has the correct data in
+        # read_reg_seq.result; Icarus can leave .result deasserted while the
+        # regfile mirror (read_reg_value) has data_valid+byte.
+        read_data = []
+        for i in range(len(write_data)):
+            await _wait_read_fifo()
+            rd = read_reg_seq(f"rd_data_{i}", addr["Data"])
+            await rd.start(self.sequencer)
+            v_bus = int(rd.result) if rd.result is not None else 0
+            v_reg = int(regs.read_reg_value("Data"))
+            if v_bus & (1 << 8):
+                val = v_bus
+            elif v_reg & (1 << 8):
+                val = v_reg
+            else:
+                assert False, f"read Data not valid: bus=0x{v_bus:04x} reg=0x{v_reg:04x}"
+            read_data.append(val & 0xFF)
+
+        assert read_data == write_data, (
+            f"I2C write/read MISMATCH: addr=0x{mem_addr:04x} "
+            f"wrote={[hex(d) for d in write_data]} "
+            f"read={[hex(d) for d in read_data]}"
+        )
+
+    async def _wait_idle(self, dut, regs, addr):
+        for _ in range(5000):
+            await ClockCycles(dut.CLK, 10)
+            await read_reg_seq("rd_status", addr["Status"]).start(self.sequencer)
+            status = regs.read_reg_value("Status")
+            if not (status & 0x1):
+                return

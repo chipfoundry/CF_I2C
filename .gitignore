@@ -53,3 +53,15 @@ Module.symvers
 Mkfile.old
 dkms.conf
 .vcd
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Simulation output
+verify/pyuvm/sim/
+verify/pyuvm/i2c_slaves/
+
+# macOS
+.DS_Store
